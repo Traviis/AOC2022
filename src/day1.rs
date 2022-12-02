@@ -1,5 +1,3 @@
-use std::fs;
-
 // Let's over-engineer this for explicitness.
 type Calories = u64;
 // Ended up not needing this, since both parts just asked for the sums in the backpacks.

@@ -1,6 +1,6 @@
-type StrategyGuide = Vec<(Hand, Hand)>;
+type StrategyGuide<'a> = Vec<(Hand<'a>, Hand<'a>)>;
 
-type InputType = StrategyGuide;
+type InputType<'a> = StrategyGuide<'a>;
 type OutputType = u64;
 
 //Thoughts:
@@ -17,14 +17,14 @@ type OutputType = u64;
 //    parsing the error, so just copy, even though it loses out on performance.
 
 #[derive(Debug, Clone)]
-pub enum Hand {
+pub enum Hand<'a> {
     //Include the variant (A or Y for each, might not be needed)
-    Rock(String),
-    Paper(String),
-    Scissor(String),
+    Rock(&'a str),
+    Paper(&'a str),
+    Scissor(&'a str),
 }
 
-impl PartialEq for Hand {
+impl PartialEq for Hand<'_> {
     //Would be cool if there was an easier way to do this, but this seems to be the best way to
     //throw out the additional information (the string variant)
     fn eq(&self, other: &Self) -> bool {
@@ -110,9 +110,9 @@ fn round_outcome(a: &Hand, b: &Hand) -> u64 {
 }
 
 //part 2
-impl From<&String> for Outcome {
-    fn from(c: &String) -> Self {
-        match c.as_str() {
+impl From<&str> for Outcome {
+    fn from(c: &str) -> Self {
+        match c {
             "X" => Outcome::Lose,
             "Y" => Outcome::Draw,
             "Z" => Outcome::Win,
@@ -120,65 +120,68 @@ impl From<&String> for Outcome {
         }
     }
 }
-fn convert_hand_to_outcome(b: &Hand) -> Outcome {
+fn convert_hand_to_outcome<'a>(b: &'a Hand) -> Outcome {
     //heh, since we mistranslated the column, just add a translation shim here You could of course
     //just not convert across like this and use Hand, but that's kind of gross.
     // it's really cool that I can use an or expression in a pattern and have it all resolve to the
     // same variable
     match b {
-        Hand::Rock(a) | Hand::Scissor(a) | Hand::Paper(a) => a.into(),
+        Hand::Rock(a) | Hand::Scissor(a) | Hand::Paper(a) => (*a).into(),
     }
 }
-fn determine_play(a: &Hand, b: &Outcome) -> Hand {
+fn determine_play<'a>(a: &'a Hand, b: &Outcome) -> Hand<'a> {
     match b {
         Outcome::Draw => a.clone(), //given that the plays are different for the first column, this
-                                    //technically has an incorrect string variant, but I never
-                                    //check them so, who cares.
+        //technically has an incorrect string variant, but I never
+        //check them so, who cares.
         Outcome::Win => match a {
-            Hand::Rock(_) => Hand::Paper("Y".to_string()),
-            Hand::Paper(_) => Hand::Scissor("Z".to_string()),
-            Hand::Scissor(_) => Hand::Rock("X".to_string()),
+            Hand::Rock(_) => Hand::Paper("Y"),
+            Hand::Paper(_) => Hand::Scissor("Z"),
+            Hand::Scissor(_) => Hand::Rock("X"),
         },
         Outcome::Lose => match a {
-            Hand::Rock(_) => Hand::Scissor("Z".to_string()),
-            Hand::Paper(_) => Hand::Rock("X".to_string()),
-            Hand::Scissor(_) => Hand::Paper("Y".to_string()),
+            Hand::Rock(_) => Hand::Scissor("Z"),
+            Hand::Paper(_) => Hand::Rock("X"),
+            Hand::Scissor(_) => Hand::Paper("Y"),
         },
     }
 }
 
 //Could use &str here, but the macro doesn't really expect to work well with lifetime specifiers,
 //so be lazy for now
-impl From<String> for Hand {
-    fn from(c: String) -> Self {
-        match c.as_str() {
-            "A" | "X" => Hand::Rock(c),
-            "B" | "Y" => Hand::Paper(c),
-            "C" | "Z" => Hand::Scissor(c),
+impl<'a> From<&'a str> for Hand<'a> {
+    fn from(c: &'a str) -> Self {
+        match c {
+            "A" | "X" => Hand::Rock(&c),
+            "B" | "Y" => Hand::Paper(&c),
+            "C" | "Z" => Hand::Scissor(&c),
             _ => panic!("Unknown char {}", c),
         }
     }
 }
 
-#[aoc_generator(day2)]
+//#[aoc_generator(day2)]; doesn't work with lifetime bound items
 fn day2_parse(input: &str) -> InputType {
     input
         .split("\n")
         .map(|line| {
-            let mut it = line.split_whitespace().map(|c| c.to_owned().into());
+            let mut it = line.split_whitespace().map(|c| c.into());
             (it.next().unwrap(), it.next().unwrap())
         })
         .collect()
 }
 
 #[aoc(day2, part1)]
-pub fn part1(input: &InputType) -> OutputType {
-    input.iter().map(|(r1, r2)| round_outcome(r1, r2)).sum()
+pub fn part1(input: &str) -> OutputType {
+    day2_parse(input)
+        .iter()
+        .map(|(r1, r2)| round_outcome(r1, r2))
+        .sum()
 }
 
 #[aoc(day2, part2)]
-pub fn part2(input: &InputType) -> OutputType {
-    input
+pub fn part2(input: &str) -> OutputType {
+    day2_parse(input)
         .iter()
         .map(|(r1, r2)| (r1, determine_play(&r1, &convert_hand_to_outcome(&r2))))
         .map(|(r1, r2)| round_outcome(&r1, &r2))
@@ -198,11 +201,11 @@ C Z"
 
     #[test]
     fn day2_part1() {
-        assert_eq!(part1(&day2_parse(get_test_input())), 15);
+        assert_eq!(part1(get_test_input()), 15);
     }
 
     #[test]
     fn day2_part2() {
-        assert_eq!(part2(&day2_parse(get_test_input())), 12);
+        assert_eq!(part2(get_test_input()), 12);
     }
 }

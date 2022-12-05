@@ -46,6 +46,7 @@ impl ElfPair {
         }
     }
 
+    #[allow(dead_code)]
     fn new_regex(inp: &str) -> Self {
         // 255 us
         lazy_static! {

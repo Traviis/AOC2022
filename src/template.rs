@@ -28,11 +28,11 @@ mod tests {
 
     #[test]
     fn example_part1() {
-        assert_eq!(part1(day1_parse(get_test_input())), 0);
+        assert_eq!(part1(&day1_parse(get_test_input())), 0);
     }
 
     #[test]
     fn example_part2() {
-        assert_eq!(part2(day1_parse(get_test_input())), 0);
+        assert_eq!(part2(&day1_parse(get_test_input())), 0);
     }
 }

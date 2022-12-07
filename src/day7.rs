@@ -10,6 +10,12 @@ type OutputType = usize;
 // painful (though, I was able to just up and write the solutions really easily). I think there are
 // two ways of making this not horrible: Change my data structure, somehow, or figure out a better
 // way of accessing so I don't have to do all the Rc -> RefCell unmapping
+// I could possibly just keep a map of full paths and just stick the dirs in there without having
+// to deal with all the refcell crap,
+//
+// TODO: Implement this without direct refs and just keep a master HashMap/BtreeMap of full paths,
+// then I have to parse strings to find paths, but that's not a huge deal, should prevent me from
+// having to have all this refcell nonsense.
 
 #[derive(Debug)]
 pub struct Dir {

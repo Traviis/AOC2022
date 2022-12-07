@@ -1,9 +1,15 @@
 use std::cell::RefCell;
-use std::rc::Rc;
 use std::collections::BTreeMap;
+use std::rc::Rc;
 
 type InputType = Rc<RefCell<Dir>>;
 type OutputType = usize;
+
+//NOTES:
+// This was pretty bad, trying to figure out how to generator the proper structure was really
+// painful (though, I was able to just up and write the solutions really easily). I think there are
+// two ways of making this not horrible: Change my data structure, somehow, or figure out a better
+// way of accessing so I don't have to do all the Rc -> RefCell unmapping
 
 #[derive(Debug)]
 pub struct Dir {
@@ -40,11 +46,6 @@ pub struct File {
     size: usize,
 }
 
-pub enum Command {
-    CD(String),
-    LS(),
-}
-
 fn get_subdir_if_exists(dir: &Rc<RefCell<Dir>>, dir_name: &str) -> Option<Rc<RefCell<Dir>>> {
     let next_dir_ref = dir.as_ref().clone().borrow();
     next_dir_ref
@@ -54,32 +55,39 @@ fn get_subdir_if_exists(dir: &Rc<RefCell<Dir>>, dir_name: &str) -> Option<Rc<Ref
         .find(|d| d.as_ref().borrow().name.to_owned() == dir_name)
 }
 
-fn calculate_naive_dir_size(dir: &Rc<RefCell<Dir>>,all_dirs : &mut BTreeMap<String,usize>) -> usize {
+fn calculate_naive_dir_size(
+    dir: &Rc<RefCell<Dir>>,
+    all_dirs: &mut BTreeMap<String, usize>,
+) -> usize {
     let mut size = 0;
     let current_dir_name = dir.as_ref().borrow().name.clone();
     let cur_path = dir.as_ref().borrow().full_path.clone();
-    //println!("Looking at {}",current_dir_name); 
+    //println!("Looking at {}",current_dir_name);
     for file in dir.as_ref().clone().borrow().files.iter() {
         size += file.size;
     }
     for dir in dir.as_ref().borrow().dirs.iter() {
-        size += calculate_naive_dir_size(&dir,all_dirs);
+        size += calculate_naive_dir_size(&dir, all_dirs);
     }
 
-    all_dirs.insert(format!("{}/{}",cur_path,current_dir_name), size);
+    all_dirs.insert(format!("{}/{}", cur_path, current_dir_name), size);
     size
 }
 
 #[aoc_generator(day7)]
 fn day7_parse(input: &str) -> InputType {
-    let top_level = Rc::new(RefCell::new(Dir::new("","/")));
+    let top_level = Rc::new(RefCell::new(Dir::new("", "/")));
     let mut cwd = vec![top_level.clone()]; //Directory stack
 
     let mut lines = input.lines().peekable();
 
     while let Some(line) = lines.next() {
         //println!("Current cwd: {:?}", cwd.iter().map(|d| d.as_ref().borrow().name.clone()).collect::<Vec<_>>());
-        let cur_path =  cwd.iter().map(|d| d.as_ref().borrow().name.clone()).collect::<Vec<String>>().join("/");
+        let cur_path = cwd
+            .iter()
+            .map(|d| d.as_ref().borrow().name.clone())
+            .collect::<Vec<String>>()
+            .join("/");
         if line.starts_with("$ cd") {
             let mut line_spaces = line.split(" ");
             let dir_name = line_spaces.nth(2).unwrap();
@@ -96,12 +104,11 @@ fn day7_parse(input: &str) -> InputType {
                 //it and traverse down
                 let next_dir = get_subdir_if_exists(&cwd.last().unwrap().clone(), dir_name);
 
-
                 if next_dir.is_some() {
                     cwd.push(next_dir.unwrap().clone());
                 } else {
                     //println!("Making new dir '{}'",dir_name);
-                    let new_dir = Rc::new(RefCell::new(Dir::new(&cur_path,dir_name)));
+                    let new_dir = Rc::new(RefCell::new(Dir::new(&cur_path, dir_name)));
                     let cur_dir = cwd.last_mut().unwrap().clone();
 
                     cur_dir.as_ref().borrow_mut().dirs.push(new_dir.clone());
@@ -110,15 +117,14 @@ fn day7_parse(input: &str) -> InputType {
             }
         } else if line.starts_with("$ ls") {
             //Is a command, get all of the lines until the next command (or end)
-            let mut objects = vec!();
-            let obj_iter = lines
-                .by_ref();
+            let mut objects = vec![];
+            let obj_iter = lines.by_ref();
 
             while let Some(obj) = obj_iter.next_if(|line| !line.starts_with("$")) {
                 objects.push(obj);
             }
-                //.take_while(|cmd_line| !cmd_line.starts_with("$"))
-                //.collect::<Vec<_>>();
+            //.take_while(|cmd_line| !cmd_line.starts_with("$"))
+            //.collect::<Vec<_>>();
             for obj in objects {
                 if obj.starts_with("dir") {
                     //is a directory
@@ -128,13 +134,12 @@ fn day7_parse(input: &str) -> InputType {
                     {
                         cwd.push(next_dir.clone());
                     } else {
-                        cwd
-                            .last_mut()
+                        cwd.last_mut()
                             .unwrap()
                             .as_ref()
                             .borrow_mut()
                             .dirs
-                            .push(Rc::new(RefCell::new(Dir::new(&cur_path,new_dir_name))));
+                            .push(Rc::new(RefCell::new(Dir::new(&cur_path, new_dir_name))));
                     }
                 } else {
                     //file
@@ -163,7 +168,11 @@ pub fn part1(input: &InputType) -> OutputType {
     //println!("{:?}", dir_map);
 
     //yea yea filter_map
-    dir_map.iter().filter(|(_,size)| **size <= 100000).map(|(_,size)| size).sum()
+    dir_map
+        .iter()
+        .filter(|(_, size)| **size <= 100000)
+        .map(|(_, size)| size)
+        .sum()
 }
 
 #[aoc(day7, part2)]
@@ -178,8 +187,12 @@ pub fn part2(input: &InputType) -> OutputType {
     let unused_space = TOTAL_SIZE - current_used;
     let need_to_delete = NEEDED_SPACE - unused_space;
 
-
-    *dir_map.iter().map(|(_,size)| size).filter(|&size| *size >= need_to_delete).min().unwrap()
+    *dir_map
+        .iter()
+        .map(|(_, size)| size)
+        .filter(|&size| *size >= need_to_delete)
+        .min()
+        .unwrap()
 }
 
 #[cfg(test)]

@@ -136,9 +136,9 @@ fn day7_parse(input: &str) -> InputType {
                     //is a directory
                     let new_dir_name = obj.split(" ").nth(1).unwrap();
                     // println!("Creating listed dir {}",new_dir_name);
-                    if let Some(next_dir) = get_subdir_if_exists(&cwd.last().unwrap(), new_dir_name)
+                    if let Some(_) = get_subdir_if_exists(&cwd.last().unwrap(), new_dir_name)
                     {
-                        cwd.push(next_dir.clone());
+                        //Don't need to do anything if it exists
                     } else {
                         cwd.last_mut()
                             .unwrap()

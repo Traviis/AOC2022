@@ -1,3 +1,6 @@
+extern crate anyhow;
+use self::anyhow::{anyhow, Result};
+
 use std::cell::RefCell;
 use std::collections::VecDeque;
 
@@ -23,9 +26,9 @@ pub struct Monkey {
 
 impl Operation {
     fn exec(&self, worry_level: Item) -> Item {
-        match self {
-            Operation::Plus(n) => worry_level + *n,
-            Operation::Mult(n) => worry_level * *n,
+        match *self {
+            Operation::Plus(n) => worry_level + n,
+            Operation::Mult(n) => worry_level * n,
             Operation::PlusSelf => worry_level + worry_level,
             Operation::MultSelf => worry_level * worry_level,
         }
@@ -33,12 +36,15 @@ impl Operation {
 }
 
 impl Monkey {
-    fn new(lines: &str) -> Self {
+    fn new(lines: &str) -> Result<Self> {
         let mut monkey_lines = lines.split("\n");
 
         monkey_lines.next(); //Title
 
-        let mut starting = monkey_lines.next().unwrap().split(" ");
+        let mut starting = monkey_lines
+            .next()
+            .ok_or(anyhow!("Missing line"))?
+            .split(" ");
         starting.next();
         starting.next();
         starting.next();
@@ -52,12 +58,12 @@ impl Monkey {
 
         //Operation
         let mut op_line = monkey_lines.next().unwrap().split(" ").skip(6);
-        let op_sym = op_line.next().unwrap();
-        let target = op_line.next().unwrap();
+        let op_sym = op_line.next().ok_or(anyhow!("missing op line"))?;
+        let target = op_line.next().ok_or(anyhow!("missing op line 2"))?;
 
         let op = match (op_sym, target) {
-            ("+", n) if n.parse::<i64>().is_ok() => Operation::Plus(n.parse::<usize>().unwrap()), //LAZY double parse
-            ("*", n) if n.parse::<i64>().is_ok() => Operation::Mult(n.parse::<usize>().unwrap()),
+            ("+", n) if n.parse::<i64>().is_ok() => Operation::Plus(n.parse::<usize>()?), //LAZY double parse
+            ("*", n) if n.parse::<i64>().is_ok() => Operation::Mult(n.parse::<usize>()?),
             ("*", "old") => Operation::MultSelf,
             ("+", "old") => Operation::PlusSelf,
             _ => panic!("Bad parse"),
@@ -66,43 +72,39 @@ impl Monkey {
         //Test
         let test_div = monkey_lines
             .next()
-            .unwrap()
+            .ok_or(anyhow!("Divisor fail"))?
             .split(" ")
             .skip(5)
             .next()
-            .unwrap()
-            .parse::<usize>()
-            .unwrap();
+            .ok_or(anyhow!("Divisor fail2"))?
+            .parse::<usize>()?;
 
         // if true
         let true_throw = monkey_lines
             .next()
-            .unwrap()
+            .ok_or(anyhow!("true fail 1"))?
             .split(" ")
             .skip(9)
             .next()
-            .unwrap()
-            .parse::<usize>()
-            .unwrap();
-        // .next().unwrap().parse::<usize>().unwrap();
+            .ok_or(anyhow!("true fail 2"))?
+            .parse::<usize>()?;
         let false_throw = monkey_lines
             .next()
-            .unwrap()
+            .ok_or(anyhow!("false fail 1"))?
             .split(" ")
             .skip(9)
             .next()
-            .unwrap()
-            .parse::<usize>()
-            .unwrap();
+            .ok_or(anyhow!("false fail 2"))?
+            .parse::<usize>()?;
 
-        Monkey {
+        Ok(Monkey {
             items,
             true_throw,
             false_throw,
             test_div,
             op,
             inspections: 0,
-        }
+        })
     }
 }
 
@@ -113,7 +115,7 @@ type OutputType = usize;
 fn day11_parse(input: &str) -> InputType {
     input
         .split("\n\n")
-        .map(|lines| RefCell::new(Monkey::new(lines)))
+        .map(|lines| RefCell::new(Monkey::new(lines).unwrap())) //lol
         .collect::<Vec<_>>()
 }
 

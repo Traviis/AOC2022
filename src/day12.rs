@@ -63,7 +63,8 @@ fn find_candidates(
             val,
             cur_height - val as i32
         );
-        if (cur_height - val as i32).abs() <= 1 {
+        //You can go down any number of levels, but can only go up 1
+        if cur_height - val as i32 >= 1 {
             candidates.push(cand);
         }
     }

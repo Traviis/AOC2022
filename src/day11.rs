@@ -123,6 +123,8 @@ pub fn part1(input: &InputType) -> OutputType {
 }
 
 pub fn monkey_business(input: &InputType, part2: bool) -> OutputType {
+    //AOC helper doesn't quite work if I tried to pass in a mut ref, input is small, so use
+    //generator pattern but just clone it.
     let input = input.clone();
 
     let lcm: usize = input.iter().map(|m| m.borrow().test_div).product();

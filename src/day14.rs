@@ -142,8 +142,8 @@ pub fn simulate_physics(input: &InputType, part2: bool) -> OutputType {
             }
         } else {
             map.insert((s_x, s_y), Space::Sand);
-            if (s_x,s_y) == (500,0) {
-                break
+            if (s_x, s_y) == (500, 0) {
+                break;
             }
         }
     }

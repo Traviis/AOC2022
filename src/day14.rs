@@ -2,17 +2,17 @@
 type InputType = Vec<&str>;
 type OutputType = u64;
 
-#[aoc_generator(day1)]
-fn day1_parse(input: &str) -> InputType {
+#[aoc_generator(day14)]
+fn day14_parse(input: &str) -> InputType {
     todo!();
 }
 
-#[aoc(day1, part1)]
+#[aoc(day14, part1)]
 pub fn part1(input: &InputType) -> OutputType {
     todo!();
 }
 
-#[aoc(day1, part2)]
+#[aoc(day14, part2)]
 pub fn part2(input: &InputType) -> OutputType {
     todo!();
 }
@@ -27,12 +27,12 @@ mod tests {
     }
 
     #[test]
-    fn day1_part1() {
-        assert_eq!(part1(&day1_parse(get_test_input())), 0);
+    fn day14_part1() {
+        assert_eq!(part1(&day14_parse(get_test_input())), 0);
     }
 
     #[test]
-    fn day1_part2() {
-        assert_eq!(part2(&day1_parse(get_test_input())), 0);
+    fn day14_part2() {
+        assert_eq!(part2(&day14_parse(get_test_input())), 0);
     }
 }

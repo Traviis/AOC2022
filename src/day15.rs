@@ -5,17 +5,23 @@ use self::regex::Regex;
 use std::collections::{HashMap, HashSet};
 extern crate rayon;
 use self::rayon::prelude::*;
-use std::sync::Mutex;
 use std::sync::Arc;
+use std::sync::Mutex;
 
+use std::cmp;
+
+#[derive(Debug)]
 pub enum Item {
     Sensor,
     Beacon,
     Nothing,
 }
 
-type InputType = (HashMap<(i64, i64), Item>, HashMap<(i64, i64), (i64, i64)>);
-type OutputType = usize;
+type InputType = (
+    HashMap<(i128, i128), Item>,
+    HashMap<(i128, i128), (i128, i128)>,
+);
+type OutputType = i128;
 
 #[aoc_generator(day15)]
 fn day15_parse(input: &str) -> InputType {
@@ -34,7 +40,7 @@ fn day15_parse(input: &str) -> InputType {
         let mut caps = caps
             .iter()
             .skip(1)
-            .map(|c| c.unwrap().as_str().parse::<i64>().unwrap());
+            .map(|c| c.unwrap().as_str().parse::<i128>().unwrap());
 
         let s_x = caps.next().unwrap();
         let s_y = caps.next().unwrap();
@@ -50,20 +56,20 @@ fn day15_parse(input: &str) -> InputType {
 }
 
 fn print_debug_map(
-    map: &HashMap<(i64, i64), Item>,
+    map: &HashMap<(i128, i128), Item>,
     max_x: usize,
     max_y: usize,
-    sens_range: &HashSet<(i64, i64)>,
+    sens_range: &HashSet<(i128, i128)>,
 ) {
-    for y in -2..=max_y as i64 {
-        for x in -2..=max_x as i64 {
+    for y in -2..=max_y as i128 {
+        for x in -2..=max_x as i128 {
             print!(
                 "{}",
-                match map.get(&(x as i64, y as i64)).unwrap_or(&Item::Nothing) {
+                match map.get(&(x as i128, y as i128)).unwrap_or(&Item::Nothing) {
                     Item::Sensor => "S",
                     Item::Beacon => "B",
                     Item::Nothing =>
-                        if sens_range.get(&(x as i64, y as i64)).is_some() {
+                        if sens_range.get(&(x as i128, y as i128)).is_some() {
                             "#"
                         } else {
                             "."
@@ -75,70 +81,142 @@ fn print_debug_map(
     }
 }
 
-fn manhatten((x1, y1): (i64, i64), (x2, y2): (i64, i64)) -> i64 {
+fn manhatten((x1, y1): (i128, i128), (x2, y2): (i128, i128)) -> i128 {
     (x1 - x2).abs() + (y1 - y2).abs()
 }
 
-fn naive_determine_sensor_range(
-    (s_x, s_y): (i64, i64),
-    (b_x, b_y): (i64, i64),
-) -> HashSet<(i64, i64)> {
-    //There is probably a clever way of calculating this, but brute force this bad boy!
+fn bounded_naive_determine_sensor_range(
+    (s_x, s_y): (i128, i128),
+    (b_x, b_y): (i128, i128),
+    min_x: i128,
+    max_x: i128,
+    min_y: i128,
+    max_y: i128,
+) -> HashSet<(i128, i128)> {
     let dist = manhatten((s_x, s_y), (b_x, b_y));
 
+    //We only care about a very specific y coordinate
+
+    //TODO: This can be optimized more, but let's just try to brute force it with checking the row
     let mut out = HashSet::new();
-    for m_y in s_y - dist..=s_y + dist {
+    out.insert((s_x,s_y));
+    //for m_y in s_y - dist..=s_y + dist {
+    for m_y in min_y..=max_y {
         for m_x in s_x - dist..=s_x + dist {
             if manhatten((m_x, m_y), (s_x, s_y)) <= dist {
-                out.insert((m_x, m_y));
+                    out.insert((m_x, m_y));
             }
         }
     }
     out
 }
-fn determine_sensor_range((s_x, s_y): (i64, i64), (b_x, b_y): (i64, i64)) -> HashSet<(i64, i64)> {
+fn naive_determine_sensor_range(
+    (s_x, s_y): (i128, i128),
+    (b_x, b_y): (i128, i128),
+    cared_y: i128,
+) -> HashSet<(i128, i128)> {
+    //There is probably a clever way of calculating this, but brute force this bad boy!
+    bounded_naive_determine_sensor_range(
+        (s_x, s_y),
+        (b_x, b_y),
+        i128::MIN,
+        i128::MAX,
+        cared_y,
+        cared_y,
+    )
+}
+fn determine_sensor_range(
+    (s_x, s_y): (i128, i128),
+    (b_x, b_y): (i128, i128),
+) -> HashSet<(i128, i128)> {
     let dist = manhatten((s_x, s_y), (b_x, b_y));
     todo!();
 }
 
 #[aoc(day15, part1)]
-pub fn part1((map, closest_map): &InputType) -> OutputType {
-    //let (b_x, b_y) = closest_map.get(&(8, 7)).unwrap();
-    //print_debug_map(map, 25, 22, &determine_sensor_range((8, 7), (*b_x, *b_y)));
-    // let all_ranges : HashSet<(i64,i64)>= closest_map
-    //     .par_iter()
-    //     .map(|((s_x, s_y), (b_x, b_y))| determine_sensor_range((*s_x, *s_y), (*b_x, *b_y)))
-    //     .reduce(|| HashSet::new(), |a: HashSet<(i64,i64)>, b: HashSet<(i64,i64)>| {
-    //         a.union(&b).cloned().collect()
-    //     }
-    //     );
-    //fold(HashSet::new(), |acc, x| acc.union(&x).cloned().collect());
+pub fn part1(inp: &InputType) -> OutputType {
+    part1_param(inp, 2000000)
+}
+
+//TODO: Ok, the slam it together approach sucks, I should rewrite this to not dump everything into
+//a set, but instead just write a function that will determine if a given point is within sensor
+//range.
+
+pub fn part1_param((map, closest_map): &InputType, cared_y: i128) -> OutputType {
     let mut all_ranges = Arc::new(Mutex::new(HashSet::new()));
 
     closest_map
         .par_iter()
-        .map(|((s_x, s_y), (b_x, b_y))| naive_determine_sensor_range((*s_x, *s_y), (*b_x, *b_y)))
+        .map(|((s_x, s_y), (b_x, b_y))| {
+            naive_determine_sensor_range((*s_x, *s_y), (*b_x, *b_y), cared_y)
+        })
         .for_each(|h_set| {
             let ranges = Arc::clone(&all_ranges);
             let mut new_set = ranges.lock().unwrap();
-            *new_set = (*new_set).union(&h_set).map(|x| *x).collect::<HashSet<(i64,i64)>>();
+            *new_set = (*new_set)
+                .union(&h_set)
+                .map(|x| *x)
+                .collect::<HashSet<(i128, i128)>>();
         });
 
-    println!("Ranges");
 
-    let homies = all_ranges
-        .lock().unwrap();
+    let cant_be = all_ranges.lock().unwrap();
 
-    homies
+   cant_be 
         .iter()
-        .filter(|(_, y)| *y == 10)
+        .filter(|(_, y)| *y == cared_y)
         .filter(|(x, y)| map.get(&(*x, *y)).is_none())
-        .count()
+        .count() as i128
 }
 
 #[aoc(day15, part2)]
-pub fn part2(input: &InputType) -> OutputType {
-    todo!();
+pub fn part2(inp: &InputType) -> OutputType {
+    part2_param(inp, 2000000)
+}
+pub fn part2_param((map, closest_map): &InputType, max_v: i128) -> OutputType {
+    let mut g_x = 0;
+    let mut g_y = 0;
+
+    for c_y in 0..max_v {
+        let mut all_ranges = Arc::new(Mutex::new(HashSet::new()));
+        closest_map
+            .par_iter()
+            .map(|((s_x, s_y), (b_x, b_y))| {
+                bounded_naive_determine_sensor_range((*s_x, *s_y), (*b_x, *b_y), 0, max_v, c_y, c_y)
+                //naive_determine_sensor_range((*s_x, *s_y), (*b_x, *b_y),  c_y)
+            })
+            .for_each(|h_set| {
+                let ranges = Arc::clone(&all_ranges);
+                let mut new_set = ranges.lock().unwrap();
+                *new_set = (*new_set)
+                    .union(&h_set)
+                    .map(|x| *x)
+                    .collect::<HashSet<(i128, i128)>>();
+            });
+
+        let cant_be = all_ranges.lock().unwrap();
+
+        let cant_be_here = cant_be
+            .iter()
+            .filter(|(_, y)| *y == c_y)
+            .filter(|(x, y)| map.get(&(*x, *y)).is_none());
+
+            let set = cant_be_here.map(|x| *x).collect::<HashSet<(i128,i128)>>();
+
+            //println!("{:?}", closest_map.keys());
+
+            for x in 0..=max_v {
+                if set.get(&(x,c_y)).is_none() && closest_map.get(&(x,c_y)).is_none() {
+                    g_x = x;
+                    g_y = c_y;
+                    println!("possible here: {},{} ({})",g_x,g_y,c_y);
+                }
+        }
+
+    }
+    static MULT: i128 = 4000000;
+    println!("Viable {},{}", g_x, g_y);
+    (g_x * MULT) + g_y
 }
 
 #[cfg(test)]
@@ -165,11 +243,11 @@ Sensor at x=20, y=1: closest beacon is at x=15, y=3"
 
     #[test]
     fn day15_part1() {
-        assert_eq!(part1(&day15_parse(get_test_input())), 26);
+        assert_eq!(part1_param(&day15_parse(get_test_input()), 10), 26);
     }
 
     #[test]
     fn day15_part2() {
-        assert_eq!(part2(&day15_parse(get_test_input())), 0);
+        assert_eq!(part2_param(&day15_parse(get_test_input()), 20), 56000011);
     }
 }
